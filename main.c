@@ -118,6 +118,8 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
 );
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - OPCODE_LENGTH - HANDLE_LENGTH; /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 
+NRF_QUEUE_ARRAY_DEF(uint8_t, m_recv_queue, 1000, NRF_QUEUE_MODE_OVERFLOW, NRF_SDH_BLE_CENTRAL_LINK_COUNT);
+
 /**@brief Function for handling asserts in the SoftDevice.
  *
  * @details This function is called in case of an assert in the SoftDevice.
@@ -292,8 +294,9 @@ static void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, ble_nus_c_evt_t con
 
         case BLE_NUS_C_EVT_NUS_TX_EVT:
             
-            app_usbd_cdc_acm_write(&m_app_cdc_acm, p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
-            NRF_LOG_INFO("Handle %x, data", p_ble_nus_c->conn_handle);
+            nrf_queue_write(&m_recv_queue[p_ble_nus_c->conn_handle], p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
+            //app_usbd_cdc_acm_write(&m_app_cdc_acm, p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
+            //NRF_LOG_INFO("Handle %x, data", p_ble_nus_c->conn_handle);
             
             //NRF_LOG_HEXDUMP_INFO(p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
             break;
@@ -784,11 +787,40 @@ int main(void)
     // Start execution.
     NRF_LOG_INFO("BLE UART central example started.");
     scan_start();
+    
+    uint8_t match = 0;
+    int16_t sendbuf[9];
+    char sendchar[300];
+    
+    ret_code_t ret;
 
     // Enter main loop.
     for (;;)
     {
-				while (app_usbd_event_queue_process())
+        
+        for(int i=0; i< NRF_SDH_BLE_CENTRAL_LINK_COUNT; i++)
+        {
+            
+            match = 0;
+            nrf_queue_pop(&m_recv_queue[i], &match);
+            if(match == 0x55)
+            {
+                nrf_queue_pop(&m_recv_queue[i], &match);
+                if(match == 0x61)
+                {
+                    ret = nrf_queue_read(&m_recv_queue[i], (uint8_t*)sendbuf, 18);
+                    if(ret == NRF_SUCCESS)
+                    {
+                        int sendnum = sprintf(sendchar, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n", i, sendbuf[0], sendbuf[1], sendbuf[2], sendbuf[3], sendbuf[4], sendbuf[5], sendbuf[6], sendbuf[7], sendbuf[8]);
+                        app_usbd_cdc_acm_write(&m_app_cdc_acm, sendchar, sendnum);
+                        NRF_LOG_INFO("read %s", sendchar);
+                            
+                    }
+                }
+            }
+        }
+        
+        while (app_usbd_event_queue_process())
         {
             /* Nothing to do */
         }
