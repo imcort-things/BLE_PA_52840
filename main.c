@@ -293,7 +293,7 @@ static void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, ble_nus_c_evt_t con
         case BLE_NUS_C_EVT_NUS_TX_EVT:
             
             app_usbd_cdc_acm_write(&m_app_cdc_acm, p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
-            NRF_LOG_INFO("Handle %x, data", p_ble_nus_evt->conn_handle);
+            NRF_LOG_INFO("Handle %x, data", p_ble_nus_c->conn_handle);
             
             //NRF_LOG_HEXDUMP_INFO(p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
             break;
