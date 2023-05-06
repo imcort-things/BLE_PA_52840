@@ -226,12 +226,12 @@
 #endif
 // <o> NRF_BLE_SCAN_UUID_CNT - Number of filters for UUIDs. 
 #ifndef NRF_BLE_SCAN_UUID_CNT
-#define NRF_BLE_SCAN_UUID_CNT 0
+#define NRF_BLE_SCAN_UUID_CNT 1
 #endif
 
 // <o> NRF_BLE_SCAN_NAME_CNT - Number of name filters. 
 #ifndef NRF_BLE_SCAN_NAME_CNT
-#define NRF_BLE_SCAN_NAME_CNT 0
+#define NRF_BLE_SCAN_NAME_CNT 1
 #endif
 
 // <o> NRF_BLE_SCAN_SHORT_NAME_CNT - Number of short name filters. 

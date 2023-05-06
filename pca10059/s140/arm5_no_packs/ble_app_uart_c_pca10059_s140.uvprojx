@@ -6874,7 +6874,7 @@
           <targetInfo name="nrf52840_xxaa"/>
         </targetInfos>
       </file>
-      <file attr="config" category="source" name="Device\Source\system_nrf52.c">
+      <file attr="config" category="source" name="Device\Source\system_nrf52.c" version="8.44.1">
         <instance index="0">RTE\Device\nRF52840_xxAA\system_nrf52.c</instance>
         <component Cclass="Device" Cgroup="Startup" Cvendor="NordicSemiconductor" Cversion="8.44.1" condition="nRF52840 Device and CMSIS"/>
         <package name="nRF_DeviceFamilyPack" schemaVersion="1.3" url="http://developer.nordicsemi.com/nRF5_SDK/pieces/nRF_DeviceFamilyPack/" vendor="NordicSemiconductor" version="8.44.1"/>
@@ -6882,7 +6882,7 @@
           <targetInfo excluded="1" name="flash_s140_nrf52_7.0.1_softdevice"/>
         </targetInfos>
       </file>
-      <file attr="config" category="source" name="Device\Source\system_nrf52840.c">
+      <file attr="config" category="source" name="Device\Source\system_nrf52840.c" version="8.35.0">
         <instance index="0">RTE\Device\nRF52840_xxAA\system_nrf52840.c</instance>
         <component Cclass="Device" Cgroup="Startup" Cvendor="NordicSemiconductor" Cversion="8.35.0" condition="nRF52840 Device and CMSIS"/>
         <package name="nRF_DeviceFamilyPack" schemaVersion="1.3" url="http://developer.nordicsemi.com/nRF5_SDK/pieces/nRF_DeviceFamilyPack/" vendor="NordicSemiconductor" version="8.35.0"/>

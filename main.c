@@ -129,7 +129,7 @@ static ble_uuid_t const m_nus_uuid =
 static ble_gap_addr_t const m_target_periph_addr =
 {
     .addr_type = BLE_GAP_ADDR_TYPE_RANDOM_STATIC,
-    .addr = {0x10, 0x96, 0x1a, 0x5b, 0xd0, 0xf3}
+    .addr = {0xf3, 0xd0, 0x5b, 0x1a, 0x96, 0x10}  //fande
 };
 
 /**@brief Function for handling asserts in the SoftDevice.
@@ -180,6 +180,23 @@ static void scan_evt_handler(scan_evt_t const * p_scan_evt)
 
     switch(p_scan_evt->scan_evt_id)
     {
+        
+        case NRF_BLE_SCAN_EVT_NOT_FOUND:
+        {
+//            ble_gap_evt_adv_report_t const * p_adv = p_scan_evt->params.p_not_found;
+//            
+//            NRF_LOG_INFO("Finding %02x%02x%02x%02x%02x%02x",
+//                      p_adv->peer_addr.addr[0],
+//                      p_adv->peer_addr.addr[1],
+//                      p_adv->peer_addr.addr[2],
+//                      p_adv->peer_addr.addr[3],
+//                      p_adv->peer_addr.addr[4],
+//                      p_adv->peer_addr.addr[5]
+//                      );
+        
+        }
+        break;
+        
          case NRF_BLE_SCAN_EVT_CONNECTING_ERROR:
          {
               err_code = p_scan_evt->params.connecting_err.err_code;
@@ -212,6 +229,7 @@ static void scan_evt_handler(scan_evt_t const * p_scan_evt)
     }
 }
 
+static char const m_target_periph_name[] = "WTIMUBMFE";             /**< Name of the device to try to connect to. This name is searched for in the scanning report data. */
 
 /**@brief Function for initializing the scanning and setting the filters.
  */
@@ -238,6 +256,12 @@ static void scan_init(void)
     APP_ERROR_CHECK(err_code);
 
     err_code = nrf_ble_scan_filters_enable(&m_scan, NRF_BLE_SCAN_ADDR_FILTER, false);
+    APP_ERROR_CHECK(err_code);
+    
+    err_code = nrf_ble_scan_filter_set(&m_scan, SCAN_NAME_FILTER, m_target_periph_name);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_ble_scan_filters_enable(&m_scan, NRF_BLE_SCAN_NAME_FILTER, false);
     APP_ERROR_CHECK(err_code);
     
 }
@@ -281,7 +305,10 @@ static void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, ble_nus_c_evt_t con
             break;
 
         case BLE_NUS_C_EVT_NUS_TX_EVT:
-						app_usbd_cdc_acm_write(&m_app_cdc_acm, p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
+            
+            app_usbd_cdc_acm_write(&m_app_cdc_acm, p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
+            NRF_LOG_INFO("Handle %x", p_ble_nus_evt->conn_handle);
+            NRF_LOG_HEXDUMP_INFO(p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
             break;
 
         case BLE_NUS_C_EVT_DISCONNECTED:
@@ -762,7 +789,7 @@ int main(void)
 
     // Start execution.
     NRF_LOG_INFO("BLE UART central example started.");
-    //scan_start();
+    scan_start();
 
     // Enter main loop.
     for (;;)
