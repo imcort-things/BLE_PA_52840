@@ -307,8 +307,9 @@ static void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, ble_nus_c_evt_t con
         case BLE_NUS_C_EVT_NUS_TX_EVT:
             
             app_usbd_cdc_acm_write(&m_app_cdc_acm, p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
-            NRF_LOG_INFO("Handle %x", p_ble_nus_evt->conn_handle);
-            NRF_LOG_HEXDUMP_INFO(p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
+            NRF_LOG_INFO("Handle %x, data", p_ble_nus_evt->conn_handle);
+            
+            //NRF_LOG_HEXDUMP_INFO(p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
             break;
 
         case BLE_NUS_C_EVT_DISCONNECTED:
@@ -372,6 +373,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             // start discovery of services. The NUS Client waits for a discovery result
             err_code = ble_db_discovery_start(&m_db_disc, p_ble_evt->evt.gap_evt.conn_handle);
             APP_ERROR_CHECK(err_code);
+        
+                scan_start();
+            
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
