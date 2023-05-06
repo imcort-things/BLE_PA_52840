@@ -100,9 +100,9 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
 #define USBD_POWER_DETECTION true
 #endif
 
-BLE_NUS_C_DEF(m_ble_nus_c);                                             /**< BLE Nordic UART Service (NUS) client instance. */
+BLE_NUS_C_ARRAY_DEF(m_ble_nus_c, NRF_SDH_BLE_CENTRAL_LINK_COUNT);                                            /**< BLE Nordic UART Service (NUS) client instance. */
 NRF_BLE_GATT_DEF(m_gatt);                                               /**< GATT module instance. */
-BLE_DB_DISCOVERY_DEF(m_db_disc);                                        /**< Database discovery module instance. */
+BLE_DB_DISCOVERY_ARRAY_DEF(m_db_disc, NRF_SDH_BLE_CENTRAL_LINK_COUNT);                                        /**< Database discovery module instance. */
 NRF_BLE_SCAN_DEF(m_scan);                                               /**< Scanning Module instance. */
 NRF_BLE_GQ_DEF(m_ble_gatt_queue,                                        /**< BLE GATT Queue instance. */
                NRF_SDH_BLE_CENTRAL_LINK_COUNT,
@@ -117,20 +117,6 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
                             APP_USBD_CDC_COMM_PROTOCOL_AT_V250
 );
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - OPCODE_LENGTH - HANDLE_LENGTH; /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
-
-/**@brief NUS UUID. */
-static ble_uuid_t const m_nus_uuid =
-{
-    .uuid = BLE_UUID_NUS_SERVICE,
-    .type = NUS_SERVICE_UUID_TYPE
-};
-
-//WT
-static ble_gap_addr_t const m_target_periph_addr =
-{
-    .addr_type = BLE_GAP_ADDR_TYPE_RANDOM_STATIC,
-    .addr = {0xf3, 0xd0, 0x5b, 0x1a, 0x96, 0x10}  //fande
-};
 
 /**@brief Function for handling asserts in the SoftDevice.
  *
@@ -252,11 +238,11 @@ static void scan_init(void)
 //    err_code = nrf_ble_scan_filters_enable(&m_scan, NRF_BLE_SCAN_UUID_FILTER, false);
 //    APP_ERROR_CHECK(err_code);
     
-    err_code = nrf_ble_scan_filter_set(&m_scan, SCAN_ADDR_FILTER, &m_target_periph_addr.addr);
-    APP_ERROR_CHECK(err_code);
+//    err_code = nrf_ble_scan_filter_set(&m_scan, SCAN_ADDR_FILTER, &m_target_periph_addr.addr);
+//    APP_ERROR_CHECK(err_code);
 
-    err_code = nrf_ble_scan_filters_enable(&m_scan, NRF_BLE_SCAN_ADDR_FILTER, false);
-    APP_ERROR_CHECK(err_code);
+//    err_code = nrf_ble_scan_filters_enable(&m_scan, NRF_BLE_SCAN_ADDR_FILTER, false);
+//    APP_ERROR_CHECK(err_code);
     
     err_code = nrf_ble_scan_filter_set(&m_scan, SCAN_NAME_FILTER, m_target_periph_name);
     APP_ERROR_CHECK(err_code);
@@ -276,7 +262,7 @@ static void scan_init(void)
  */
 static void db_disc_handler(ble_db_discovery_evt_t * p_evt)
 {
-    ble_nus_c_on_db_disc_evt(&m_ble_nus_c, p_evt);
+    ble_nus_c_on_db_disc_evt(&m_ble_nus_c[p_evt->conn_handle], p_evt);
 }
 
 /**@brief Callback handling Nordic UART Service (NUS) client events.
@@ -364,14 +350,14 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            err_code = ble_nus_c_handles_assign(&m_ble_nus_c, p_ble_evt->evt.gap_evt.conn_handle, NULL);
+            err_code = ble_nus_c_handles_assign(&m_ble_nus_c[p_gap_evt->conn_handle], p_gap_evt->conn_handle, NULL);
             APP_ERROR_CHECK(err_code);
 
             err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             APP_ERROR_CHECK(err_code);
 
             // start discovery of services. The NUS Client waits for a discovery result
-            err_code = ble_db_discovery_start(&m_db_disc, p_ble_evt->evt.gap_evt.conn_handle);
+            err_code = ble_db_discovery_start(&m_db_disc[p_gap_evt->conn_handle], p_gap_evt->conn_handle);
             APP_ERROR_CHECK(err_code);
         
                 scan_start();
@@ -383,6 +369,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             NRF_LOG_INFO("Disconnected. conn_handle: 0x%x, reason: 0x%x",
                          p_gap_evt->conn_handle,
                          p_gap_evt->params.disconnected.reason);
+            scan_start();
             break;
 
         case BLE_GAP_EVT_TIMEOUT:
@@ -506,12 +493,12 @@ void bsp_event_handler(bsp_event_t event)
             break;
 
         case BSP_EVENT_DISCONNECT:
-            err_code = sd_ble_gap_disconnect(m_ble_nus_c.conn_handle,
-                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-            if (err_code != NRF_ERROR_INVALID_STATE)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
+//            err_code = sd_ble_gap_disconnect(m_ble_nus_c.conn_handle,
+//                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+//            if (err_code != NRF_ERROR_INVALID_STATE)
+//            {
+//                APP_ERROR_CHECK(err_code);
+//            }
             break;
 
         default:
@@ -529,8 +516,11 @@ static void nus_c_init(void)
     init.error_handler = nus_error_handler;
     init.p_gatt_queue  = &m_ble_gatt_queue;
 
-    err_code = ble_nus_c_init(&m_ble_nus_c, &init);
-    APP_ERROR_CHECK(err_code);
+    for (uint32_t i = 0; i < NRF_SDH_BLE_CENTRAL_LINK_COUNT; i++)
+    {
+        err_code = ble_nus_c_init(&m_ble_nus_c[i], &init);
+        APP_ERROR_CHECK(err_code);
+    }
 }
 
 
@@ -637,44 +627,44 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             break;
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
         {
-            ret_code_t ret;
+//            ret_code_t ret;
 
-            do
-            {
-                /*Get amount of data transfered*/
-                size_t size = app_usbd_cdc_acm_rx_size(p_cdc_acm);
-                NRF_LOG_INFO("RX: size: %lu char: %c", size, m_rx_buffer[0]);
-                
-                data_array[index] = m_rx_buffer[0];
-                NRF_LOG_INFO("%c",m_rx_buffer[0]);
-                index++;
+//            do
+//            {
+//                /*Get amount of data transfered*/
+//                size_t size = app_usbd_cdc_acm_rx_size(p_cdc_acm);
+//                NRF_LOG_INFO("RX: size: %lu char: %c", size, m_rx_buffer[0]);
+//                
+//                data_array[index] = m_rx_buffer[0];
+//                NRF_LOG_INFO("%c",m_rx_buffer[0]);
+//                index++;
 
-                /* Fetch data until internal buffer is empty */
-                ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
-                                            m_rx_buffer,
-                                            READ_SIZE);
-            } while (ret == NRF_SUCCESS);
-            
-            if((data_array[index - 1] == '\n') || (data_array[index - 1] == '\r') || (index >= m_ble_nus_max_data_len))
-            {
-                data_array[index - 1] = 0;
-                
-                do
-                {
-                    ret = ble_nus_c_string_send(&m_ble_nus_c, data_array, index);
-                    if ( (ret != NRF_ERROR_INVALID_STATE) && (ret != NRF_ERROR_RESOURCES) )
-                    {
-                            APP_ERROR_CHECK(ret);
-                    }
-                    
-                } while (ret == NRF_ERROR_RESOURCES);
-                
-                NRF_LOG_INFO("sent: %s",data_array);
-                
-                index = 0;
-            }
-            
-            ret = app_usbd_cdc_acm_read(&m_app_cdc_acm, m_rx_buffer, READ_SIZE);
+//                /* Fetch data until internal buffer is empty */
+//                ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
+//                                            m_rx_buffer,
+//                                            READ_SIZE);
+//            } while (ret == NRF_SUCCESS);
+//            
+//            if((data_array[index - 1] == '\n') || (data_array[index - 1] == '\r') || (index >= m_ble_nus_max_data_len))
+//            {
+//                data_array[index - 1] = 0;
+//                
+//                do
+//                {
+//                    ret = ble_nus_c_string_send(&m_ble_nus_c, data_array, index);
+//                    if ( (ret != NRF_ERROR_INVALID_STATE) && (ret != NRF_ERROR_RESOURCES) )
+//                    {
+//                            APP_ERROR_CHECK(ret);
+//                    }
+//                    
+//                } while (ret == NRF_ERROR_RESOURCES);
+//                
+//                NRF_LOG_INFO("sent: %s",data_array);
+//                
+//                index = 0;
+//            }
+//            
+//            ret = app_usbd_cdc_acm_read(&m_app_cdc_acm, m_rx_buffer, READ_SIZE);
   
         }
         default:
