@@ -608,7 +608,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
 {
     app_usbd_cdc_acm_t const * p_cdc_acm = app_usbd_cdc_acm_class_get(p_inst);
 	
-    static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
+    static uint8_t m_cdc_data_array[BLE_NUS_MAX_DATA_LEN];
     static uint8_t index = 0;
 	
     switch (event)
@@ -630,44 +630,50 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             break;
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
         {
-//            ret_code_t ret;
+            ret_code_t ret;
+            uint32_t ret_val;
+            static uint8_t index = 0;
+            index++;
 
-//            do
-//            {
-//                /*Get amount of data transfered*/
-//                size_t size = app_usbd_cdc_acm_rx_size(p_cdc_acm);
-//                NRF_LOG_INFO("RX: size: %lu char: %c", size, m_rx_buffer[0]);
-//                
-//                data_array[index] = m_rx_buffer[0];
-//                NRF_LOG_INFO("%c",m_rx_buffer[0]);
-//                index++;
+            do
+            {
+                if ((m_cdc_data_array[index - 1] == '\n') ||
+                    (m_cdc_data_array[index - 1] == '\r') ||
+                    (index >= (BLE_NUS_MAX_DATA_LEN)))
+                {
+                    if (index > 1)
+                    {
+                        m_cdc_data_array[index] = 0;
+                        NRF_LOG_HEXDUMP_INFO(m_cdc_data_array, index);
 
-//                /* Fetch data until internal buffer is empty */
-//                ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
-//                                            m_rx_buffer,
-//                                            READ_SIZE);
-//            } while (ret == NRF_SUCCESS);
-//            
-//            if((data_array[index - 1] == '\n') || (data_array[index - 1] == '\r') || (index >= m_ble_nus_max_data_len))
-//            {
-//                data_array[index - 1] = 0;
-//                
-//                do
-//                {
-//                    ret = ble_nus_c_string_send(&m_ble_nus_c, data_array, index);
-//                    if ( (ret != NRF_ERROR_INVALID_STATE) && (ret != NRF_ERROR_RESOURCES) )
-//                    {
-//                            APP_ERROR_CHECK(ret);
-//                    }
-//                    
-//                } while (ret == NRF_ERROR_RESOURCES);
-//                
-//                NRF_LOG_INFO("sent: %s",data_array);
-//                
-//                index = 0;
-//            }
-//            
-//            ret = app_usbd_cdc_acm_read(&m_app_cdc_acm, m_rx_buffer, READ_SIZE);
+                        do
+                        {
+                            ret_val = ble_nus_c_string_send(&m_ble_nus_c[0], m_cdc_data_array, index);
+                            if ( (ret_val != NRF_ERROR_INVALID_STATE) && (ret_val != NRF_ERROR_RESOURCES) )
+                            {
+                                APP_ERROR_CHECK(ret_val);
+                            }
+                        } while (ret_val == NRF_ERROR_RESOURCES);
+                        
+                    }
+
+                    index = 0;
+                }
+
+                /*Get amount of data transferred*/
+                size_t size = app_usbd_cdc_acm_rx_size(p_cdc_acm);
+                NRF_LOG_INFO("RX: size: %lu char: %x", size, m_cdc_data_array[index - 1]);
+
+                /* Fetch data until internal buffer is empty */
+                ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
+                                            &m_cdc_data_array[index],
+                                            1);
+                if (ret == NRF_SUCCESS)
+                {
+                    index++;
+                }
+            }
+            while (ret == NRF_SUCCESS);
   
         }
         default:
