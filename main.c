@@ -100,9 +100,9 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
 #define USBD_POWER_DETECTION true
 #endif
 
-BLE_NUS_C_ARRAY_DEF(m_ble_nus_c, NRF_SDH_BLE_CENTRAL_LINK_COUNT);                                            /**< BLE Nordic UART Service (NUS) client instance. */
+BLE_NUS_C_DEF(m_ble_nus_c);                                            /**< BLE Nordic UART Service (NUS) client instance. */
 NRF_BLE_GATT_DEF(m_gatt);                                               /**< GATT module instance. */
-BLE_DB_DISCOVERY_ARRAY_DEF(m_db_disc, NRF_SDH_BLE_CENTRAL_LINK_COUNT);                                        /**< Database discovery module instance. */
+BLE_DB_DISCOVERY_DEF(m_db_disc);                                        /**< Database discovery module instance. */
 NRF_BLE_SCAN_DEF(m_scan);                                               /**< Scanning Module instance. */
 NRF_BLE_GQ_DEF(m_ble_gatt_queue,                                        /**< BLE GATT Queue instance. */
                NRF_SDH_BLE_CENTRAL_LINK_COUNT,
@@ -117,8 +117,6 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
                             APP_USBD_CDC_COMM_PROTOCOL_AT_V250
 );
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - OPCODE_LENGTH - HANDLE_LENGTH; /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
-
-NRF_QUEUE_ARRAY_DEF(uint8_t, m_recv_queue, 1000, NRF_QUEUE_MODE_OVERFLOW, NRF_SDH_BLE_CENTRAL_LINK_COUNT);
 
 /**@brief Function for handling asserts in the SoftDevice.
  *
@@ -217,7 +215,7 @@ static void scan_evt_handler(scan_evt_t const * p_scan_evt)
     }
 }
 
-static char const m_target_periph_name[] = "Nordic_Template";             /**< Name of the device to try to connect to. This name is searched for in the scanning report data. */
+static char const m_target_periph_name[] = "TT_FNIRS";             /**< Name of the device to try to connect to. This name is searched for in the scanning report data. */
 
 /**@brief Function for initializing the scanning and setting the filters.
  */
@@ -264,7 +262,7 @@ static void scan_init(void)
  */
 static void db_disc_handler(ble_db_discovery_evt_t * p_evt)
 {
-    ble_nus_c_on_db_disc_evt(&m_ble_nus_c[p_evt->conn_handle], p_evt);
+    ble_nus_c_on_db_disc_evt(&m_ble_nus_c, p_evt);
 }
 
 /**@brief Callback handling Nordic UART Service (NUS) client events.
@@ -353,14 +351,14 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            err_code = ble_nus_c_handles_assign(&m_ble_nus_c[p_gap_evt->conn_handle], p_gap_evt->conn_handle, NULL);
+            err_code = ble_nus_c_handles_assign(&m_ble_nus_c, p_gap_evt->conn_handle, NULL);
             APP_ERROR_CHECK(err_code);
 
             err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             APP_ERROR_CHECK(err_code);
 
             // start discovery of services. The NUS Client waits for a discovery result
-            err_code = ble_db_discovery_start(&m_db_disc[p_gap_evt->conn_handle], p_gap_evt->conn_handle);
+            err_code = ble_db_discovery_start(&m_db_disc, p_gap_evt->conn_handle);
             APP_ERROR_CHECK(err_code);
         
                 scan_start();
@@ -519,11 +517,8 @@ static void nus_c_init(void)
     init.error_handler = nus_error_handler;
     init.p_gatt_queue  = &m_ble_gatt_queue;
 
-    for (uint32_t i = 0; i < NRF_SDH_BLE_CENTRAL_LINK_COUNT; i++)
-    {
-        err_code = ble_nus_c_init(&m_ble_nus_c[i], &init);
-        APP_ERROR_CHECK(err_code);
-    }
+    err_code = ble_nus_c_init(&m_ble_nus_c, &init);
+    APP_ERROR_CHECK(err_code);
 }
 
 
@@ -648,7 +643,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
 
                         do
                         {
-                            ret_val = ble_nus_c_string_send(&m_ble_nus_c[0], m_cdc_data_array, index);
+                            ret_val = ble_nus_c_string_send(&m_ble_nus_c, m_cdc_data_array, index);
                             if ( (ret_val != NRF_ERROR_INVALID_STATE) && (ret_val != NRF_ERROR_RESOURCES) )
                             {
                                 APP_ERROR_CHECK(ret_val);
@@ -794,42 +789,12 @@ int main(void)
     NRF_LOG_INFO("BLE UART central example started.");
     scan_start();
     
-    uint8_t match = 0;
-    int16_t sendbuf[9];
-    char sendchar[300];
-    
     ret_code_t ret;
 
     // Enter main loop.
     for (;;)
     {
-        
-//        for(int i=0; i< NRF_SDH_BLE_CENTRAL_LINK_COUNT; i++)
-//        {
-//            
-//            match = 0;
-//            nrf_queue_pop(&m_recv_queue[i], &match);
-//            if(match == 0x55)
-//            {
-//                nrf_queue_pop(&m_recv_queue[i], &match);
-//                if(match == 0x61)
-//                {
-//                    ret = nrf_queue_read(&m_recv_queue[i], (uint8_t*)sendbuf, 18);
-//                    if(ret == NRF_SUCCESS)
-//                    {
-//                        int sendnum = sprintf(sendchar, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n", i, sendbuf[0], sendbuf[1], sendbuf[2], sendbuf[3], sendbuf[4], sendbuf[5], sendbuf[6], sendbuf[7], sendbuf[8]);
-//                        app_usbd_cdc_acm_write(&m_app_cdc_acm, sendchar, sendnum);
-//                        NRF_LOG_INFO("read %s", sendchar);
-//                            
-//                    }
-//                }
-//            }
-//        }
-        
-//        ret_code_t ret = nrf_queue_pop(&m_recv_queue[0], &match);
-//        if(ret == NRF_SUCCESS)
-//            app_usbd_cdc_acm_write(&m_app_cdc_acm, &match, 1);
-        
+     
         while (app_usbd_event_queue_process())
         {
             /* Nothing to do */
