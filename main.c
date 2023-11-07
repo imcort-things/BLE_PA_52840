@@ -351,18 +351,15 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            err_code = ble_nus_c_handles_assign(&m_ble_nus_c, p_gap_evt->conn_handle, NULL);
+            err_code = ble_nus_c_handles_assign(&m_ble_nus_c, p_ble_evt->evt.gap_evt.conn_handle, NULL);
             APP_ERROR_CHECK(err_code);
 
             err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             APP_ERROR_CHECK(err_code);
 
             // start discovery of services. The NUS Client waits for a discovery result
-            err_code = ble_db_discovery_start(&m_db_disc, p_gap_evt->conn_handle);
+            err_code = ble_db_discovery_start(&m_db_disc, p_ble_evt->evt.gap_evt.conn_handle);
             APP_ERROR_CHECK(err_code);
-        
-                scan_start();
-            
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
@@ -370,7 +367,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             NRF_LOG_INFO("Disconnected. conn_handle: 0x%x, reason: 0x%x",
                          p_gap_evt->conn_handle,
                          p_gap_evt->params.disconnected.reason);
-            scan_start();
             break;
 
         case BLE_GAP_EVT_TIMEOUT:
@@ -494,12 +490,12 @@ void bsp_event_handler(bsp_event_t event)
             break;
 
         case BSP_EVENT_DISCONNECT:
-//            err_code = sd_ble_gap_disconnect(m_ble_nus_c.conn_handle,
-//                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-//            if (err_code != NRF_ERROR_INVALID_STATE)
-//            {
-//                APP_ERROR_CHECK(err_code);
-//            }
+            err_code = sd_ble_gap_disconnect(m_ble_nus_c.conn_handle,
+                                                BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+            if (err_code != NRF_ERROR_INVALID_STATE)
+            {
+                APP_ERROR_CHECK(err_code);
+            }
             break;
 
         default:
@@ -591,13 +587,9 @@ static void idle_state_handle(void)
     }
 }
 
-#define READ_SIZE 1
-static char m_rx_buffer[READ_SIZE];
-
 /**
  * @brief User event handler @ref app_usbd_cdc_acm_user_ev_handler_t (headphones)
  * */
-
 static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
                                     app_usbd_cdc_acm_user_event_t event)
 {
@@ -613,7 +605,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             bsp_board_led_on(LED_CDC_ACM_OPEN);
             scan_start();
             /*Set rx buffer*/
-            ret_code_t ret = app_usbd_cdc_acm_read(&m_app_cdc_acm, m_rx_buffer, READ_SIZE);
+            ret_code_t ret = app_usbd_cdc_acm_read(&m_app_cdc_acm, m_cdc_data_array, 1);
             UNUSED_VARIABLE(ret);
             break;
         }
